@@ -39,14 +39,16 @@ jobs:
             git fetch origin
             git checkout ${{ github.head_ref }}
             git pull origin ${{ github.head_ref }}
+            
+            # 3. Clean install and BUILD the missing folder
             npm install
+            npm run build 
             
-            # 3. FIX: Create the build folder that the server is looking for
-            npm run build
+            # 4. Final check: Ensure the build folder exists
+            ls -la build || echo "BUILD FOLDER STILL MISSING"
             
-            # 4. Restart the app
+            # 5. Restart the app
             pm2 restart testing-app || pm2 start index.js --name "testing-app"
-
       - name: 5. Notify Success (Email QA)
         if: success()
         uses: dawidd6/action-send-mail@v3
