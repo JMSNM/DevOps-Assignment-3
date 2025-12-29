@@ -29,7 +29,7 @@ jobs:
           username: ubuntu
           key: ${{ secrets.EC2_TESTING_SSH_KEY }}
           script: |
-            if [ ! -d "app" ]; then git clone https://github.com/${{ github.repository }} app; fi
+            if [ ! -d "app" ]; then git clone https://github.com/JMSNM/DevOps-Assignment-3.git app; fi
             cd app
             git pull origin ${{ github.head_ref }}
             npm install
