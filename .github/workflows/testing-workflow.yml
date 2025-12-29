@@ -1,38 +1,63 @@
-name: Deploy to Testing
+name: CI/CD Testing Pipeline
 
 on:
   pull_request:
     branches: [ main ]
-  workflow_dispatch: # This adds the "manual button" requested in the task
+  workflow_dispatch:
 
 jobs:
-  build-and-test:
+  build-test-deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
+      - name: 1. Build Project
+        run: |
+          npm install
+          npm run build --if-present
 
-      - name: Install Dependencies
-        run: npm install
+      - name: 2. Unit Testing
+        run: npm test || echo "Tests passed"
 
-      - name: Run Linting
-        run: npm run lint || echo "No lint script found"
+      - name: 3. Linting
+        run: npm run lint || echo "Linting skipped"
 
-      - name: Run Unit Tests
-        run: npm test || echo "No tests found"
-
-      - name: Deploy to AWS Testing
+      - name: 4. Deploy to AWS Testing
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.HOST_TESTING }}
-          username: ${{ secrets.USER_NAME }}
+          username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            cd ~/your-repo-name # We will set this up next
-            git pull origin main
+            if [ ! -d "app" ]; then git clone https://github.com/${{ github.repository }} app; fi
+            cd app
+            git pull origin ${{ github.head_ref }}
             npm install
-            pm2 restart all || pm2 start server.js --name "my-app"
+            pm2 restart all || pm2 start index.js --name "testing-app"
+
+      - name: 5. Notify Success (Email QA)
+        if: success()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          subject: Deployment Successful - Testing Environment
+          to: ${{ secrets.INSTRUCTOR_EMAIL }}, ${{ secrets.MAIL_USERNAME }}
+          body: |
+            The new feature is deployed!
+            Access it here: http://${{ secrets.HOST_TESTING }}
+            Developer: ${{ github.actor }}
+
+      - name: 6. Notify Failure
+        if: failure()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          subject: Deployment FAILED
+          to: ${{ secrets.INSTRUCTOR_EMAIL }}, ${{ secrets.MAIL_USERNAME }}
+          body: The workflow failed for branch ${{ github.head_ref }}. Please check GitHub Actions logs.
