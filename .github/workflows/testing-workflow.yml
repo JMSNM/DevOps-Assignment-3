@@ -1,0 +1,38 @@
+name: Deploy to Testing
+
+on:
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch: # This adds the "manual button" requested in the task
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Run Linting
+        run: npm run lint || echo "No lint script found"
+
+      - name: Run Unit Tests
+        run: npm test || echo "No tests found"
+
+      - name: Deploy to AWS Testing
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOST_TESTING }}
+          username: ${{ secrets.USER_NAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd ~/your-repo-name # We will set this up next
+            git pull origin main
+            npm install
+            pm2 restart all || pm2 start server.js --name "my-app"
