@@ -29,11 +29,23 @@ jobs:
           username: ubuntu
           key: ${{ secrets.EC2_TESTING_SSH_KEY }}
           script: |
-            if [ ! -d "app" ]; then git clone https://github.com/JMSNM/DevOps-Assignment-3.git app; fi
+            # 1. Navigate to app or clone if missing
+            if [ ! -d "app" ]; then 
+              git clone https://github.com/JMSNM/DevOps-Assignment-3.git app
+            fi
             cd app
+            
+            # 2. Update code and dependencies
+            git fetch origin
+            git checkout ${{ github.head_ref }}
             git pull origin ${{ github.head_ref }}
             npm install
-            pm2 restart all || pm2 start index.js --name "testing-app"
+            
+            # 3. FIX: Create the build folder that the server is looking for
+            npm run build
+            
+            # 4. Restart the app
+            pm2 restart testing-app || pm2 start index.js --name "testing-app"
 
       - name: 5. Notify Success (Email QA)
         if: success()
